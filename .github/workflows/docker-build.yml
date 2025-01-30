@@ -32,5 +32,6 @@ jobs:
         with:
           context: .
           file: ./dockerfiles/debian.dockerfile
+          platforms: linux/arm64,linux/amd64
           push: true
           tags: ghcr.io/${{ github.repository }}:2.0
