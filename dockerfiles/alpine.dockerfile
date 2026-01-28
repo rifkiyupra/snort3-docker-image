@@ -1,20 +1,20 @@
-ARG ALPINE_VERSION=3
+ARG ALPINE_VERSION=3.20
 
 FROM alpine:${ALPINE_VERSION} AS builder
 
-ARG SNORT_VERSION=3.1.47.0
-ARG HYPERSCAN_VERSION=5.4.0
-ARG LIBDAQ_VERSION=3.0.9
-ARG LIBDNET_VERSION=1.16.1
+ARG SNORT_VERSION=3.3.4.0
+ARG HYPERSCAN_VERSION=5.4.2
+ARG LIBDAQ_VERSION=3.0.16
+ARG LIBDNET_VERSION=1.18.0
 
 RUN set -eux; \
     apk add --no-cache \
     build-base cmake bash autoconf automake pkgconf \
-    libpcap libpcap-dev pcre pcre-dev \
+    libpcap libpcap-dev pcre pcre-dev gcc g++ libc-dev \
     luajit luajit-dev check check-dev hwloc hwloc-dev \
     openssl-dev libssl3 openssl zlib zlib-dev flex flex-dev bison \
     xz xz-dev libuuid linux-headers git \
-    libunwind libunwind-dev libtool \
+    libunwind libunwind-dev libtool numactl-dev \
     ca-certificates util-linux-dev libtirpc-dev boost boost-dev ragel
 
 ADD https://github.com/intel/hyperscan/archive/refs/tags/v${HYPERSCAN_VERSION}.tar.gz /tmp/hyperscan.tar.gz
@@ -106,37 +106,42 @@ FROM alpine:${ALPINE_VERSION}
 
 RUN set -eux; \
     apk add --no-cache \
-    libpcap pcre \
+    libpcap pcre numactl \
     luajit check hwloc \
     libssl3 openssl zlib flex bison \
     xz libuuid libtirpc \
     libunwind libtool \
     ca-certificates boost ragel \
-    python3 py3-requests ; \
-    mkdir -p /usr/local/etc/pulledpork/
+    python3 py3-requests
 
-COPY --from=builder /usr/local/lib/ /usr/local/lib/
-COPY --from=builder /usr/local/include/ /usr/local/include/
-COPY --from=builder /usr/local/share/doc/ /usr/local/share/doc/
-COPY --from=builder /usr/local/snort/ /usr/local/
-COPY --from=builder /usr/local/bin/pulledpork/ /usr/local/bin/
-COPY --from=builder /usr/local/etc/pulledpork/ /usr/local/etc/pulledpork/
-COPY conf/pulledpork.conf /usr/local/etc/pulledpork/pulledpork.conf
+COPY --link --from=builder /usr/local/lib/ /usr/local/lib/
+COPY --link --from=builder /usr/local/include/ /usr/local/include/
+COPY --link --from=builder /usr/local/share/doc/ /usr/local/share/doc/
+COPY --link --from=builder /usr/local/snort/ /usr/local/
+COPY --link --from=builder /usr/local/bin/pulledpork/ /usr/local/bin/
+COPY --link --from=builder /usr/local/etc/pulledpork/ /usr/local/etc/pulledpork/
 
 RUN set -eux; \
     ldconfig /usr/local/lib ; \
     chmod +x /usr/local/bin/pulledpork.py ; \
     # setup user \
     addgroup -S snort && \
-    adduser -S -G snort snort ; \
+    adduser -S -G netdev -g snort snort ; \
     install -g snort -o snort -m 5775 -d /var/log/snort ; \
     # prepare snort rules diretories \
-    mkdir -p /usr/local/etc/rules ; \
-    mkdir -p /usr/local/etc/so_rules/ ; \
-    mkdir -p /usr/local/etc/lists/ ; \
-    touch /usr/local/etc/rules/local.rules ; \
-    touch /usr/local/etc/lists/default.blocklist ; \
-    # download community rules
-    pulledpork.py -c /usr/local/etc/pulledpork/pulledpork.conf
+    mkdir -p /var/log/snort \
+    /usr/local/etc/snort3/rules \
+    /usr/local/etc/snort3/so_rules \
+    /usr/local/etc/snort3/lists ; \
+    touch /usr/local/etc/snort3/rules/local.rules \
+    /usr/local/etc/snort3/lists/reputation.blocklist \
+    /usr/local/etc/snort3/lists/reputation.allowlist \
+    /usr/local/etc/snort3/rules/pulledpork.rules
 
-CMD [ "/usr/local/bin/snort", "-T", "-c", "/usr/local/etc/snort/snort.lua" ]
+COPY --link conf/pulledpork.conf /usr/local/etc/pulledpork/pulledpork.conf
+COPY --link conf/snort_defaults.lua /usr/local/etc/snort/snort_defaults.lua
+COPY --link conf/snort.lua /usr/local/etc/snort/snort.lua
+
+COPY --link start.sh /usr/local/bin/start-sensor.sh
+
+CMD [ "/usr/local/bin/start-sensor.sh" ]

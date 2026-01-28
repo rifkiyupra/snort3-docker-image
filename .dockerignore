@@ -1,1 +1,8 @@
-Dockerfiles/*
+Dockerfiles/
+.github/
+.hadolint.yaml
+.gitignore
+LICENSE
+Makefile
+README.md
+docker-compose.yml

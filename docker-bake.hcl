@@ -3,19 +3,28 @@ variable "image_name" {
 }
 
 variable "snort_version" {
-  default = str = "3.1.47.0"
+  default = "3.3.4.0"
 }
 
 variable "libdaq_version" {
-  default = "3.0.9"
+  default = "3.0.16"
+}
+
+variable "libdnet_version" {
+  default = "1.18.0"
+}
+
+variable "hyperscan_version" {
+  default = "5.4.2"
 }
 
 variable "image_repo_host" {
-    default = "mataelang"
+    default = "mfscy"
 }
 
 variable "image_tag" {
-    default = ["3", "3.1", "3.1.47", "3.1.47.0"]
+    //default = ["3", "3.3", "3.3.4", "3.3.4.0"]
+    default = ["3.3.4.0"]
 }
 
 function "get_image_tag" {
@@ -30,19 +39,14 @@ function "get_image_tag" {
 
 group "default" {
   targets = [
-    "snort3-debian-11",
-    "snort3-debian-11-4",
-    "snort3-alpine-3",
-    "snort3-alpine-3-17",
+    //"snort3-debian-12",
+    "snort3-debian-12-6",
+    //"snort3-alpine-3",
+    // "snort3-alpine-3-20",
   ]
 }
 
-target "virtual-default" {
-  context = "."
-  labels = {
-    // "net.mataelang.image.source" = "https://github.com/mata-elang-stable",
-  }
-}
+target "docker-metadata-action" {}
 
 target "virtual-platforms" {
   platforms = [
@@ -65,12 +69,14 @@ target "virtual-alpine" {
 
 target "snort3-default" {
   inherits = [
-    "virtual-default",
+    "docker-metadata-action",
     "virtual-platforms",
   ]
   args = {
     SNORT_VERSION = snort_version
     LIBDAQ_VERSION = libdaq_version
+    LIBDNET_VERSION = libdnet_version
+    HYPERSCAN_VERSION = hyperscan_version
   }
 }
 
@@ -88,27 +94,27 @@ target "snort3-alpine" {
   ]
 }
 
-target "snort3-debian-11" {
+target "snort3-debian-12" {
   inherits = [
     "snort3-debian"
   ]
   args = {
-    DEBIAN_VERSION = "11"
+    DEBIAN_VERSION = "12-slim"
   }
   tags = concat(
-    get_image_tag(image_name, "latest", "", ""),
+    // get_image_tag(image_name, "latest", "", ""),
     get_image_tag(image_name, image_tag, "", "")
   )
 }
 
-target "snort3-debian-11-4" {
+target "snort3-debian-12-6" {
   inherits = [
     "snort3-debian"
   ]
   args = {
-    DEBIAN_VERSION = "11.4"
+    DEBIAN_VERSION = "12.6-slim"
   }
-  tags = get_image_tag(image_name, image_tag, "debian", "11.4")
+  tags = get_image_tag(image_name, image_tag, "debian", "12.6")
 }
 
 target "snort3-alpine-3" {
@@ -121,12 +127,12 @@ target "snort3-alpine-3" {
   tags = get_image_tag(image_name, image_tag, "alpine", "3")
 }
 
-target "snort3-alpine-3-17" {
+target "snort3-alpine-3-20" {
   inherits = [
     "snort3-alpine"
   ]
   args = {
-    ALPINE_VERSION = "3.17"
+    ALPINE_VERSION = "3.20"
   }
-  tags = get_image_tag(image_name, image_tag, "alpine", "3.17")
+  tags = get_image_tag(image_name, image_tag, "alpine", "3.20")
 }
